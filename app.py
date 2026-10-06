@@ -16,7 +16,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 1. 구글 스프레드시트 연결 설정 (클라우드/로컬 자동 분기)
+# 1. 구글 스프레드시트 연결 설정 (st.secrets 활용 + PEM 키 줄바꿈 보정)
 # ---------------------------------------------------------
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1jvQNuEMI_8-Ff3wygskhrdHyz5Rkshouvn48wHkamk4/edit?gid=1314802059#gid=1314802059"
 
@@ -25,7 +25,11 @@ def init_connection():
     if os.path.exists("secrets.json"):
         return gspread.service_account(filename="secrets.json")
     else:
+        # st.secrets에서 딕셔너리 가져오기
         credentials_dict = dict(st.secrets["gcp_service_account"])
+        # 🔑 핵심: private_key 내부에 문자열로 들어간 "\n"을 실제 줄바꿈으로 변환
+        if "private_key" in credentials_dict:
+            credentials_dict["private_key"] = credentials_dict["private_key"].replace("\\n", "\n")
         return gspread.service_account_from_dict(credentials_dict)
 
 try:
