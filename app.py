@@ -3,26 +3,30 @@ import pandas as pd
 import gspread
 from datetime import datetime
 import traceback
+import os
 
 # 페이지 설정
 st.set_page_config(page_title="현장 발주 시스템", layout="wide")
 
 # ---------------------------------------------------------
-# 🎨 표 내부의 모든 값을 중앙 정렬하기 위한 CSS 스타일 추가
+# 🎨 스타일 설정 (모든 값 가운데 정렬)
 # ---------------------------------------------------------
 st.markdown("""
 
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 1. 구글 스프레드시트 연결 설정
+# 1. 구글 스프레드시트 연결 설정 (클라우드/로컬 자동 분기)
 # ---------------------------------------------------------
-# 🚨 본인의 구글 스프레드시트 URL 주소로 꼭 다시 변경하세요!
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1jvQNuEMI_8-Ff3wygskhrdHyz5Rkshouvn48wHkamk4/edit?gid=1314802059#gid=1314802059"
 
 @st.cache_resource
 def init_connection():
-    return gspread.service_account(filename="secrets.json")
+    if os.path.exists("secrets.json"):
+        return gspread.service_account(filename="secrets.json")
+    else:
+        credentials_dict = dict(st.secrets["gcp_service_account"])
+        return gspread.service_account_from_dict(credentials_dict)
 
 try:
     gc = init_connection()
@@ -33,7 +37,7 @@ except Exception as e:
     st.stop()
 
 # ---------------------------------------------------------
-# 2. 데이터 로드 로직 (가격 열 콤마 및 이미지 처리)
+# 2. 데이터 로드 로직
 # ---------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_data(sheet_name):
@@ -52,7 +56,6 @@ def load_data(sheet_name):
                 
             df = df[cols_to_keep]
             
-            # '가'가 포함된 열(특약점가, 특판가, 단가 등)에 자동으로 콤마(,) 포맷 적용
             for col in df.columns:
                 if '가' in str(col):
                     def format_price(val):
@@ -62,7 +65,6 @@ def load_data(sheet_name):
                             return val
                     df[col] = df[col].apply(format_price)
             
-            # 발주수량 열을 맨 뒤에 추가
             df['발주수량'] = 0
             
         return df
@@ -74,7 +76,7 @@ def load_data(sheet_name):
 # ---------------------------------------------------------
 # 3. 메인 화면 (영업사원 UI)
 # ---------------------------------------------------------
-st.title("📦 현장 발주 시스템")
+st.title("📦 현장 발주 시스템 (구글 연동)")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -122,7 +124,6 @@ disabled_cols = filtered_df.columns.tolist()
 if '발주수량' in disabled_cols:
     disabled_cols.remove('발주수량')
 
-# 표 안에 상품 사진 썸네일 표시 설정
 col_config = {}
 if '이미지' in df.columns:
     col_config['이미지'] = st.column_config.ImageColumn(
